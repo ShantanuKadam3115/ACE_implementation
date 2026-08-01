@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+.DS_Store
+Thumbs.db
+
+# datasets tend to be large / not meant for git
+*.zip
+*.tar
+*.tar.gz
+data/
