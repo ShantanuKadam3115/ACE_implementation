@@ -1,4 +1,3 @@
-import torch.nn as nn # type: ignore
 import torch # type: ignore
 
 
@@ -9,8 +8,8 @@ import torch # type: ignore
 CameraPoint = torch.tensor([
     [1.0, 2.0, 5.0],   # X = 1
     [3.0, 2.0, 5.0],   # X = 3
-    [6.0, 3.0, 7.0],
-    [6.0, 3.0, 4.0]
+    [4.0, 4.0, 6.0],
+    [4.0, 4.0, 12.0]
 ])
 
 print(CameraPoint)
