@@ -18,8 +18,11 @@ t_wc = - R_wc @ t_cw.T #[0,0,5]
 
 # true_wp = torch.tensor([-50.0, 50.0, -50.0])
 true_wp = torch.tensor([0.0, 1.0, 0.0])
+
+
 X_cam = torch.empty(len(true_wp), 3)
 X_cam = true_wp @ R_wc.T + t_wc
+
 u1,v1, w1 = k @ X_cam.T
 u1 = u1/w1
 v1 = v1/w1
