@@ -12,7 +12,9 @@ test_dataset = CustomDataset(datsetPath)
 
 img, pose = test_dataset[2]
 
+
 img = img.float()/255
+img.requires_grad = True
 
 transform = transforms.Normalize(
     mean=[0.485, 0.456, 0.406],
@@ -21,6 +23,7 @@ transform = transforms.Normalize(
 
 normalized_img = transform(img)
 batched_img  = normalized_img.unsqueeze(0)
+# batched_img.requires_grad = True
 
 model = resnet18(weights = ResNet18_Weights.DEFAULT)
 
@@ -34,9 +37,35 @@ for items in truncate.parameters():
 
 result = truncate(batched_img )
 
-print(result, result.shape)
-print(result.requires_grad)
+output_value = result[0, :, 30, 40]
+output_value.sum().backward()
+mask = img.grad.abs().sum(dim=0) > 0
+
+coordinates = torch.nonzero(mask)
+
+min_row, max_row = coordinates[:, 0].min().item(), coordinates[:, 0].max().item()
+min_col, max_col = coordinates[:, 1].min().item(), coordinates[:, 1].max().item()
+
+print(f"({min_row}, {min_col}), ({min_row}, {max_col}), ({max_row}, {min_col}), ({max_row}, {max_col})")
+# print(coordinates)
+
+
+def feature_to_pixel(row_idx, col_idx, stride=4):
+    u = col_idx * stride + stride / 2
+    v = row_idx * stride + stride / 2
+    return u, v
+
+
+u,v = feature_to_pixel(30, 40)
+
+print(u,v)
+# print("result shape : ", result.shape)
+# print(result.requires_grad)
 # print(img)
 # print(normalized_img)
-# print(resized_img.shape)
+# print("batched_img shape", batched_img.shape)
 # print(ResNet18_Weights.DEFAULT.transforms())
+# print(output_value, output_value.sum())
+
+
+
