@@ -10,5 +10,6 @@ Thumbs.db
 *.zip
 *.tar
 *.tar.gz
+*.pt
 data/
 Phase3/dataset/
