@@ -11,6 +11,15 @@ k = torch.tensor([[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]])
 
 NUM_TRAINING_STEPS = 1
 
+TOLERANCE_START = 200.0  # pixels, loose early on
+TOLERANCE_END = 2.0      # pixels, tight once the network is capable
+
+
+def get_tolerance(step, total_steps, start=TOLERANCE_START, end=TOLERANCE_END):
+    # exponential decay: shrinks fast early, levels off later
+    progress = min(step / total_steps, 1.0)
+    return start * (end / start) ** progress
+
 
 class MLP(nn.Module):
     def __init__(self):
@@ -30,9 +39,8 @@ class MLP(nn.Module):
 if __name__ == "__main__":
     buffer_dataset = Bufferdataset(path="seq_1_buffer.pt")
     buffer_loader = DataLoader(buffer_dataset, batch_size=2048, shuffle=True)
-
+    torch.manual_seed(0)
     linearModel = MLP()
-    lossFunction = nn.MSELoss()
     optimizer = torch.optim.SGD(linearModel.parameters(), lr=0.001)
 
     for step, (feature_batch, pixel_coords_batch, pose_batch) in enumerate(buffer_loader):
@@ -41,8 +49,17 @@ if __name__ == "__main__":
 
         predicted_world = linearModel(feature_batch)  # (B, 3)
 
-        R_cw = pose_batch[:, 0:3, 0:3]  # (B, 3, 3), one rotation per sample
-        t_cw = pose_batch[:, 0:3, 3]    # (B, 3), one translation per sample
+        # print(pose_batch[0])
+        # print(pose_batch[511])
+        # print(pose_batch[512])
+        # print(feature_batch.shape)
+        # print(pixel_coords_batch.shape)
+        # print(pose_batch.shape) # check why this shape is (2048,4,4)
+
+        R_cw = pose_batch[:, 0:3, 0:3]  
+        t_cw = pose_batch[:, 0:3, 3]    
+
+        # print(R_cw.shape)
 
         R_wc = R_cw.mT
 
@@ -52,16 +69,35 @@ if __name__ == "__main__":
         t_wc = -torch.einsum('bij,bj->bi', R_wc, t_cw)
         X_cam = torch.einsum('bij,bj->bi', R_wc, predicted_world) + t_wc  # (B, 3)
 
-        print(t_wc.shape)
-        print(X_cam.shape)
+        # print(t_wc.shape)
+        # print(X_cam.shape)
 
         uvw = X_cam @ k.T  # (B, 3), shared K, no batching needed here
+        print(uvw.shape)
         predicted_pixels = uvw[:, :2] / uvw[:, 2:3]  # (B, 2)
 
-        loss = lossFunction(predicted_pixels, pixel_coords_batch)
+        print(predicted_pixels.shape)
+
+        per_sample_error = torch.norm(predicted_pixels - pixel_coords_batch, dim=1)  
+
+        valid_mask = X_cam[:, 2] > 0  
+        valid_errors = per_sample_error[valid_mask]
+        print(valid_errors.shape)
+
+        if valid_errors.numel() == 0:
+            print(f"step {step}: no valid (in-front-of-camera) samples, skipping")
+            continue
+
+        tolerance = get_tolerance(step, NUM_TRAINING_STEPS)
+        loss_per_sample = torch.clamp(valid_errors - tolerance, min=0)
+        loss = loss_per_sample.mean()
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        print(f"step {step}: loss = {loss.item():.4f}")
+        print(
+            f"step {step}: loss = {loss.item():.4f}, "
+            f"tolerance = {tolerance:.2f}, "
+            f"valid = {valid_errors.numel()}/{per_sample_error.numel()}"
+        )
