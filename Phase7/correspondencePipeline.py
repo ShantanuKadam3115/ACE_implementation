@@ -54,8 +54,27 @@ for i in range(20):
 
     # print(predicted_world_points.shape)
 
+    
+    # true_R_wc = true_R_cw.mT
+    # true_t_wc = - true_R_wc @ true_t_cw 
+    # # print("t_wc", t_wc)
 
-    success ,rvec,tvec,_ = cv2.solvePnPRansac(objectPoints=predicted_world_points.numpy(), imagePoints=pixels.numpy(), cameraMatrix=K.numpy(), distCoeffs=None)
+    # check_X_cam = torch.empty(len(predicted_world_points), 3)
+    # check_X_cam = predicted_world_points @ true_R_wc.T + true_t_wc
+
+    # u1,v1, w1 = K @ check_X_cam.T
+    # u1 = u1/w1
+    # v1 = v1/w1
+    # predicted_pixels = torch.stack([u1,v1], dim = 1)
+
+    # # print(f"true pixels : {pixels} and predicted pixels ; {predicted_pixels}")
+    # per_sample_error = torch.norm(predicted_pixels - pixels, dim=1)
+    # total_error = per_sample_error.sum()
+    # median_error = per_sample_error.median()
+    # # print(median_error)
+
+
+    success ,rvec,tvec,_ = cv2.solvePnPRansac(objectPoints=predicted_world_points.numpy(), imagePoints=pixels.numpy(), cameraMatrix=K.numpy(), distCoeffs=None,reprojectionError=245.0)
 
     # print(rvec, tvec)
 
@@ -71,12 +90,13 @@ for i in range(20):
     # translation error: distance between estimated and true camera centres (meters)
     translation_error = np.linalg.norm(predicted_t_cw - true_t_cw)
     translation_error_list.append(translation_error)
+
     # rotation error: angle of the relative rotation, from trace(R) = 1 + 2cos(theta)
     R_delta = predicted_R_cw.T @ true_R_cw
     cos_theta = (np.trace(R_delta) - 1.0) / 2.0
     cos_theta = np.clip(cos_theta, -1.0, 1.0)  # float drift can push it just outside [-1, 1]
     rotation_error = np.degrees(np.arccos(cos_theta))
-    print(f"{i} : {rotation_error}")
+    # print(f"{i} : {rotation_error}")
     rotation_error_list.append(rotation_error)
 
 print(f"success: {success}")
