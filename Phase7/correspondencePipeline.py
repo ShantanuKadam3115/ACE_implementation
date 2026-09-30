@@ -96,7 +96,7 @@ for i in range(20):
     cos_theta = (np.trace(R_delta) - 1.0) / 2.0
     cos_theta = np.clip(cos_theta, -1.0, 1.0)  # float drift can push it just outside [-1, 1]
     rotation_error = np.degrees(np.arccos(cos_theta))
-    # print(f"{i} : {rotation_error}")
+    print(f"{i} : {rotation_error}")
     rotation_error_list.append(rotation_error)
 
 print(f"success: {success}")
